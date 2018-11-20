@@ -49,13 +49,9 @@ module IOStreams
         @input_stream = input_stream
         @buffer_size  = buffer_size
 
-        # More efficient read buffering only supported when the input stream `#read` method supports it.
-        @use_read_cache_buffer = !@input_stream.method(:read).arity.between?(0, 1)
-
-        @line_count        = 0
-        @eof               = false
-        @read_cache_buffer = nil
-        @buffer            = nil
+        @line_count = 0
+        @eof        = false
+        @buffer     = nil
 
         read_block
         # Auto-detect windows/linux line endings if not supplied. \n or \r\n
@@ -113,18 +109,7 @@ module IOStreams
       def read_block
         return false if @eof
 
-        block =
-          if @read_cache_buffer
-            begin
-              @input_stream.read(@buffer_size, @read_cache_buffer)
-            rescue ArgumentError
-              # Handle arity of -1 when just 0..1
-              @read_cache_buffer = nil
-              @input_stream.read(@buffer_size)
-            end
-          else
-            @input_stream.read(@buffer_size)
-          end
+        block = @input_stream.read(@buffer_size)
 
         # EOF reached?
         if block.nil?
@@ -138,9 +123,7 @@ module IOStreams
           @buffer << block
         else
           # Take on the encoding from the input stream
-          @buffer            = block.dup
-          # Take on the encoding from the first block that was read.
-          @read_cache_buffer = ''.encode(block.encoding) if @use_read_cache_buffer
+          @buffer = block.dup
         end
 
         if @buffer.size > MAX_BLOCKS_MULTIPLIER * @buffer_size

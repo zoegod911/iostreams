@@ -50,30 +50,12 @@ module IOStreams
 
         @encoding         = encoding.nil? || encoding.is_a?(Encoding) ? encoding : Encoding.find(encoding)
         @encoding_options = encode_replace.nil? ? {} : {invalid: :replace, undef: :replace, replace: encode_replace}
-
-        # More efficient read buffering only supported when the input stream `#read` method supports it.
-        if encode_replace.nil? && !@input_stream.method(:read).arity.between?(0, 1)
-          @read_cache_buffer = ''.encode(@encoding)
-        else
-          @read_cache_buffer = nil
-        end
       end
 
       # Returns [String] data returned from the input stream.
       # Returns [nil] if end of file and no further data was read.
       def read(size = nil)
-        block =
-          if @read_cache_buffer
-            begin
-              @input_stream.read(size, @read_cache_buffer)
-            rescue ArgumentError
-              # Handle arity of -1 when just 0..1
-              @read_cache_buffer = nil
-              @input_stream.read(size)
-            end
-          else
-            @input_stream.read(size)
-          end
+        block = @input_stream.read(size)
 
         # EOF reached?
         return unless block
